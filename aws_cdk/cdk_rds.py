@@ -1,8 +1,14 @@
-from aws_cdk import core
-import aws_cdk.aws_ec2 as ec2
+# from aws_cdk import core
+# import aws_cdk.aws_ec2 as ec2
+# import aws_cdk.aws_rds as rds
+from aws_cdk import (
+    aws_ec2 as ec2,
+    aws_rds as rds,
+    core,
+)
 
 
-class CdkVpcStack(core.Stack):
+class CdkRdsStack(core.Stack):
 
     def __init__(self, scope: core.Construct, id: str, **kwargs) -> None:
         super().__init__(scope, id, **kwargs)
@@ -226,45 +232,101 @@ class CdkVpcStack(core.Stack):
 
         ami_id = ec2.AmazonLinuxImage(generation = ec2.AmazonLinuxGeneration.AMAZON_LINUX_2).get_image(self).image_id
 
-        security_group = ec2.SecurityGroup(
-            self,
-            id='test',
-            vpc=self.vpc,
-            security_group_name='test-security-group'
-        )
+        # security_group = ec2.SecurityGroup(
+        #     self,
+        #     id='test',
+        #     vpc=self.vpc,
+        #     security_group_name='test-security-group'
+        # )
 
-        security_group.add_ingress_rule(
-            peer=ec2.Peer.ipv4(cidr),
-            connection=ec2.Port.tcp(22),
-        )
+        # security_group.add_ingress_rule(
+        #     peer=ec2.Peer.ipv4(cidr),
+        #     connection=ec2.Port.tcp(22),
+        # )
         
-        test_web = ec2.CfnInstance(self,
-            "testInstance01",
-            image_id = ami_id,
-            instance_type = "t3a.micro",
-            monitoring = False,
-            key_name = "stg-intrinio-www01",
-            security_group_ids=[security_group.security_group_id],
-            block_device_mappings = [{
-            "deviceName": "/dev/xvda",
-            "ebs": {
-                "volumeSize": 10,
-                "volumeType": "io1",
-                "iops": 150,
-                "deleteOnTermination": True
-                    }
-                }
-            ],
-            tags = [
-                { "key": "Name", "value": prefix }
-            ],
-            network_interfaces = [{
-                "deviceIndex": "0",
-                "associatePublicIpAddress": True,
-                "subnetId": self.public_subnet_a.ref,
-                # "groupSet": [web_sg.security_group_id]
-            }], #https: //github.com/aws/aws-cdk/issues/3419
+        # red_web_inst = ec2.CfnInstance(self,
+        #     "testInstance01",
+        #     image_id = ami_id,
+        #     instance_type = "t3a.micro",
+        #     monitoring = False,
+        #     key_name = "stg-intrinio-www01",
+        #     security_group_ids=[security_group.security_group_id],
+        #     block_device_mappings = [{
+        #     "deviceName": "/dev/xvda",
+        #     "ebs": {
+        #         "volumeSize": 10,
+        #         "volumeType": "io1",
+        #         "iops": 150,
+        #         "deleteOnTermination": True
+        #             }
+        #         }
+        #     ],
+        #     tags = [
+        #         { "key": "Name", "value": prefix }
+        #     ],
+        #     network_interfaces = [{
+        #         "deviceIndex": "0",
+        #         "associatePublicIpAddress": True,
+        #         "subnetId": self.public_subnet_a.ref,
+        #         # "groupSet": [web_sg.security_group_id]
+        #     }], #https: //github.com/aws/aws-cdk/issues/3419
+        # )
+    # RdsSecurityGroup
+        rds_security_group = ec2.CfnSecurityGroup(self, "RdsSecurityGroup",
+          group_name = "rds-sg",
+          group_description =  "HTTP traffic",
+          vpc_id = self.vpc.ref,
+          security_group_ingress = [
+            {
+              "ipProtocol" : "tcp",
+              "fromPort" : 3306,
+              "toPort" : 3306,
+              "cidrIp" : "0.0.0.0/0"
+            }
+          ],
+          security_group_egress = [
+            {
+              "ipProtocol" : "tcp",
+              "fromPort" : 0,
+              "toPort" : 65535,
+              "cidrIp" : "0.0.0.0/0"
+            }
+          ],
         )
+        # MyDBSubnetGroup
+        rds_subnet_group = rds.CfnDBSubnetGroup(self, "DBSubnetGroup",
+            db_subnet_group_description = "DBSubnetGroup",
+            subnet_ids = [
+                    self.public_subnet_a.ref,
+                    self.public_subnet_c.ref,
+                    self.public_subnet_d.ref
+            ]
+        )
+        rds_params = {
+            'engine': "mysql",
+            'db_name': "test",
+            'master_username': "test",
+            'master_user_password': "zaq12wsx",
+            'db_instance_class': 'db.t3.micro',
+            'db_instance_identifier': "stg-test-db01",
+            'backup_retention_period': 7,
+            'delete_automated_backups': True,
+            'storage_type': 'gp2',
+            'allocated_storage': '5',
+            'engine_version': '5.6.39',
+            'deletion_protection': False,
+            'auto_minor_version_upgrade': False,
+            'publicly_accessible': False,
+            'storage_encrypted': False,
+            'copy_tags_to_snapshot': True,
+            'multi_az': False,
+            'db_subnet_group_name' : rds_subnet_group.ref,
+            'vpc_security_groups': [rds_security_group.ref]
+        }
 
-        core.CfnOutput(self, "Output",
+        self.rds = rds.CfnDBInstance(self, 'staff-rds', **rds_params)
+
+        core.CfnOutput(self, "OutputVpc",
                        value=self.vpc.ref)
+        core.CfnOutput(self, "OutputRds",
+                       value=self.rds.ref)
