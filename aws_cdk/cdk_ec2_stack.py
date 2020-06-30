@@ -19,18 +19,6 @@ class CdkEc2Stack(core.Stack):
     def __init__(self, scope: core.Construct, id: str, vpc, subnet_id, **kwargs) -> None:
         super().__init__(scope, id, **kwargs)
 
-        #vpc = ec2.Vpc.from_lookup(self, "VPC", vpc_id=vpc_id)
-        # ingress_ssh = ec2.CfnSecurityGroupIngressProps(ip_protocol="tcp",
-        #                                        from_port=22,
-        #                                        to_port=22,
-        #                                        cidr_ip="0.0.0.0/0")
-
-        # egress_all = ec2.CfnSecurityGroupEgressProps(group_id="aa",
-        #                                      ip_protocol="tcp",
-        #                                      from_port=0,
-        #                                      to_port=65535,
-        #                                      cidr_ip="0.0.0.0/0")
-
         security_group = ec2.CfnSecurityGroup(
             self,
             id="web_server_sg",
@@ -68,9 +56,16 @@ class CdkEc2Stack(core.Stack):
                       key_name=key_name,
                     #   credit_specification= { "cpu_credits" : "standard" },
                       credit_specification= ec2.CfnInstance.CreditSpecificationProperty(cpu_credits = "standard"),
-                      disable_api_termination=True,
+                      disable_api_termination=False,
                       security_group_ids=[security_group.ref],
                       subnet_id=subnet_id.ref,
+                      block_device_mappings = [{
+                        "deviceName": "/dev/xvda",
+                        "ebs": {
+                            "volumeSize": 10,
+                                }
+                            }
+                      ],
                       tags=[{
                           "key": "Name",
                           "value": "test-instance"
