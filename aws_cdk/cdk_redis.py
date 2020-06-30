@@ -4,11 +4,12 @@
 from aws_cdk import (
     aws_ec2 as ec2,
     aws_rds as rds,
+    aws_elasticache as redis,
     core,
 )
 
 
-class CdkRdsStack(core.Stack):
+class CdkRedisStack(core.Stack):
 
     def __init__(self, scope: core.Construct, id: str, **kwargs) -> None:
         super().__init__(scope, id, **kwargs)
@@ -230,7 +231,7 @@ class CdkRdsStack(core.Stack):
         #     gateway_id=igw.ref
         # )
 
-        ami_id = ec2.AmazonLinuxImage(generation = ec2.AmazonLinuxGeneration.AMAZON_LINUX_2).get_image(self).image_id
+        # ami_id = ec2.AmazonLinuxImage(generation = ec2.AmazonLinuxGeneration.AMAZON_LINUX_2).get_image(self).image_id
 
         # security_group = ec2.SecurityGroup(
         #     self,
@@ -271,17 +272,17 @@ class CdkRdsStack(core.Stack):
         #         # "groupSet": [web_sg.security_group_id]
         #     }], #https: //github.com/aws/aws-cdk/issues/3419
         # )
-    # RdsSecurityGroup
-        RdsSecurityGroupStg = ec2.CfnSecurityGroup(self, "RdsSecurityGroupStg",
-          group_name = 'stg-'+prefix+'-db01',
-          group_description = 'stg-'+prefix+'-db01',
+    # RedisSecurityGroup
+        redis_security_group = ec2.CfnSecurityGroup(self, "RedisSecurityGroup",
+          group_name = "stg-test-redis01",
+          group_description =  "HTTP traffic",
           vpc_id = self.vpc.ref,
           security_group_ingress = [
             {
               "ipProtocol" : "tcp",
-              "fromPort" : 3306,
-              "toPort" : 3306,
-              "cidrIp" : "0.0.0.0/0"
+              "fromPort" : 6379,
+              "toPort" : 6379,
+              "cidrIp" : "192.168.0.0/16"
             }
           ],
           security_group_egress = [
@@ -294,68 +295,31 @@ class CdkRdsStack(core.Stack):
           ],
         )
         # MyDBSubnetGroup
-        rds_subnet_group = rds.CfnDBSubnetGroup(self, "DBSubnetGroup",
-            db_subnet_group_description = "DBSubnetGroup",
+        redis_subnet_group = redis.CfnSubnetGroup(self, "RedisSubnetGroup",
+            cache_subnet_group_name = "stg-test-redis01",
+            description = "stg-test-redis01",
             subnet_ids = [
                     self.public_subnet_a.ref,
                     self.public_subnet_c.ref,
                     self.public_subnet_d.ref
             ]
         )
-        DBParameterGroupStg = rds.CfnDBParameterGroup(self, "DBParameterGroupStg",
-            description = 'stg-'+prefix+'db01',
-            family = "MySQL5.6",
-            parameters = {
-                'character_set_client': "utf8",
-                'character_set_connection': "utf8",
-                'character_set_database': "utf8",
-                'character_set_results': "utf8",
-                'character_set_server': "utf8",
-                'collation_connection': "utf8_general_ci",
-                'collation_server': "utf8_general_ci",
-                'long_query_time': "1.2",
-                'slow_query_log': "1",
-                'time_zone': "Asia/Tokyo",
-            },
-            tags=[
-                core.CfnTag(key="Name", value='stg-'+prefix+'db01')
-            ]
-        )
-        rds_params = {
-            'db_instance_identifier': "stg-test-db01",
-            'engine': "mysql",
-            'engine_version': '5.6.39',
-            'db_instance_class': 'db.t3.micro',
-            'allocated_storage': '5',
-            'storage_type': 'gp2',
-            'db_name': "test",
-            'master_username': "test",
-            'master_user_password': "zaq12wsx",
-            'db_subnet_group_name' : rds_subnet_group.ref,
-            'publicly_accessible': False,
-            'multi_az': False,
-            'preferred_backup_window': "18:00-18:30",
-            'preferred_maintenance_window': "sat:19:00-sat:19:30",
-            'auto_minor_version_upgrade': False,
-            'db_parameter_group_name': DBParameterGroupStg.ref,
-            'vpc_security_groups': [RdsSecurityGroupStg.ref],
-            'copy_tags_to_snapshot': True,
-            'backup_retention_period': 7,
-            # 'enable_performance_insights': True,
-            'delete_automated_backups': True,
-            'deletion_protection': False,
-            'availability_zone': "us-east-1a",
-            'enable_cloudwatch_logs_exports': ["error","slowquery"]
-            # 'storage_encrypted': False,
+        redis_params = {
+            'auto_minor_version_upgrade': True,
+            'engine': 'redis',
+            'at_rest_encryption_enabled': True,
+            'automatic_failover_enabled': False,
+            'engine_version': '4.0.10',
+            'cache_node_type': 'cache.t3.micro',
+            'num_cache_clusters': 1,
+            'replication_group_description': "stg-test-redis01",
+            'security_group_ids': [redis_security_group.ref],
+            'cache_subnet_group_name': redis_subnet_group.ref
         }
 
-        self.rds = rds.CfnDBInstance(self, 'staff-rds', **rds_params,
-            tags=[
-                core.CfnTag(key="Name", value='stg-'+prefix+'db01')
-            ]
-        )
+        self.redis = redis.CfnReplicationGroup(self, 'staff-redis', **redis_params)
 
         core.CfnOutput(self, "OutputVpc",
                        value=self.vpc.ref)
-        core.CfnOutput(self, "OutputRds",
-                       value=self.rds.ref)
+        core.CfnOutput(self, "OutputRedis",
+                       value=self.redis.ref)

@@ -20,27 +20,42 @@ class CdkEc2Stack(core.Stack):
         super().__init__(scope, id, **kwargs)
 
         #vpc = ec2.Vpc.from_lookup(self, "VPC", vpc_id=vpc_id)
-        ingress_ssh = ec2.CfnSecurityGroupIngressProps(ip_protocol="tcp",
-                                               from_port=22,
-                                               to_port=22,
-                                               cidr_ip="0.0.0.0/0")
+        # ingress_ssh = ec2.CfnSecurityGroupIngressProps(ip_protocol="tcp",
+        #                                        from_port=22,
+        #                                        to_port=22,
+        #                                        cidr_ip="0.0.0.0/0")
 
-        egress_all = ec2.CfnSecurityGroupEgressProps(group_id="aa",
-                                             ip_protocol="tcp",
-                                             from_port=0,
-                                             to_port=65535,
-                                             cidr_ip="0.0.0.0/0")
+        # egress_all = ec2.CfnSecurityGroupEgressProps(group_id="aa",
+        #                                      ip_protocol="tcp",
+        #                                      from_port=0,
+        #                                      to_port=65535,
+        #                                      cidr_ip="0.0.0.0/0")
 
         security_group = ec2.CfnSecurityGroup(
             self,
             id="web_server_sg",
             vpc_id=vpc.ref,
-            group_name='testsecuritygroup',
+            group_name='test securitygroup',
             group_description="Web server security group",
-            security_group_ingress=[ingress_ssh],
-            security_group_egress=[egress_all],
+            # security_group_ingress=[ingress_ssh],
+            # security_group_egress=[egress_all],
             tags = [core.CfnTag(key="Name", value="web_server_security_group")]
         )
+        
+        # public Ingress
+        ec2.CfnSecurityGroupIngress(self, 'publicsecuritygroupingress01', group_id=security_group.ref, ip_protocol='tcp', cidr_ip='0.0.0.0/0', description='for bastion', from_port=22, to_port=22)
+        # public Egress
+        ec2.CfnSecurityGroupEgress(
+            self, 
+            'publicsecuritygroupegress01', 
+            group_id=security_group.ref, 
+            ip_protocol='-1', 
+            cidr_ip='0.0.0.0/0'
+        # destination_security_group_id=privatesecuritygroup01.ref, 
+        # description='for private', 
+        # from_port=22, to_port=22
+        )
+        # private Ingress
 
         image_id=ec2.AmazonLinuxImage(generation=ec2.AmazonLinuxGeneration.AMAZON_LINUX_2).get_image(self).image_id
 
@@ -51,6 +66,9 @@ class CdkEc2Stack(core.Stack):
                       image_id=image_id,
                       instance_type=ec2_type,
                       key_name=key_name,
+                    #   credit_specification= { "cpu_credits" : "standard" },
+                      credit_specification= ec2.CfnInstance.CreditSpecificationProperty(cpu_credits = "standard"),
+                      disable_api_termination=True,
                       security_group_ids=[security_group.ref],
                       subnet_id=subnet_id.ref,
                       tags=[{
@@ -58,6 +76,7 @@ class CdkEc2Stack(core.Stack):
                           "value": "test-instance"
                       }]
                       )
+        # host.add_property_override("credit_specification", { "cpu_credits" : "standard" })
         # ec2.Instance has no property of BlockDeviceMappings, add via lower layer cdk api:
         # host.instance.add_property_override("BlockDeviceMappings", [{
         #     "DeviceName": "/dev/xvda",
