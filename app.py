@@ -11,6 +11,8 @@ from aws_cdk.cdk_rds import CdkRdsStack
 from aws_cdk.cdk_redis import CdkRedisStack
 from aws_cdk.cdk_ecs import MyEcsConstructStack
 from aws_cdk.cdk_rds_stack import CdkRDSStack
+from aws_cdk.cdk_redis_stack import CdkREDISStack
+from aws_cdk.mk.cdk_cf_stack import CdkCDNStack
 
 env = core.Environment(account="456843195142", region="us-east-1")
 
@@ -21,7 +23,9 @@ rds_stack = CdkRDSStack(app, "cdk-rds",vpc=vpc_stack.vpc,public_subnet_a=vpc_sta
 # rds_stack = CdkRdsStack(app, "cdk-rds")
 # ecs_stack = MyEcsConstructStack(app, "cdk-ecs")
 # redis_stack = CdkRedisStack(app, "cdk-redis")
+redis_stack = CdkREDISStack(app, "cdk-redis",vpc=vpc_stack.vpc,public_subnet_a=vpc_stack.public_subnet_a,public_subnet_c=vpc_stack.public_subnet_c,public_subnet_d=vpc_stack.public_subnet_d)
 ec2_stack = CdkEc2Stack(app, "cdk-ec2",vpc=vpc_stack.vpc,subnet_id=vpc_stack.public_subnet_a)
+cf_stack = CdkCDNStack(app, "cdk-cf")
 # ec2_stack = CdkVpcEc2Stack(app, "cdk-ec2", env=env)
 # AppStack(app, "ec2", env=env)
 
