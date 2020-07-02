@@ -7,8 +7,11 @@ class CdkVpcStack(core.Stack):
     def __init__(self, scope: core.Construct, id: str, **kwargs) -> None:
         super().__init__(scope, id, **kwargs)
 
-        prefix = "test"
-        cidr = "192.168.0.0/16"
+        prefix = self.node.try_get_context("project_name")
+        env_name = self.node.try_get_context("env")
+        cidr = self.node.try_get_context("cidir")
+        # cidr = "192.168.0.0/16"
+        # prefix = "test"
         # def name(s): return "{0}/{1}".format(prefix, s)
         def name(s): return "{0} {1}".format(prefix, s)
 
@@ -76,6 +79,7 @@ class CdkVpcStack(core.Stack):
             vpc_id=self.vpc.ref,
             cidr_block="192.168.0.0/20",
             # availability_zone="ap-northeast-1a",
+            map_public_ip_on_launch=True,
             availability_zone="us-east-1a",
             tags=[
                 core.CfnTag(key="Name", value=prefix+" public_a")
@@ -86,6 +90,7 @@ class CdkVpcStack(core.Stack):
             self, "public_c",
             vpc_id=self.vpc.ref,
             cidr_block="192.168.16.0/20",
+            map_public_ip_on_launch=True,
             availability_zone="us-east-1c",
             tags=[
                 core.CfnTag(key="Name", value=prefix+" public_c")
@@ -95,6 +100,7 @@ class CdkVpcStack(core.Stack):
             self, "public_d",
             vpc_id=self.vpc.ref,
             cidr_block="192.168.32.0/20",
+            map_public_ip_on_launch=True,
             availability_zone="us-east-1d",
             tags=[
                 core.CfnTag(key="Name", value=prefix+" public_d")

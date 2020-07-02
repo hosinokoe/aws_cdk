@@ -7,10 +7,11 @@ from aws_cdk import (
 
 class CdkRDSStack(core.Stack):
 
-    def __init__(self, scope: core.Construct, id: str, vpc, public_subnet_a, public_subnet_c, public_subnet_d, **kwargs) -> None:
+    def __init__(self, scope: core.Construct, id: str, vpc, public_subnet_a, public_subnet_c, public_subnet_d, ec2_sg_id, **kwargs) -> None:
         super().__init__(scope, id, **kwargs)
 
         prefix = "test"
+        # print(ec2_sg_id.ref)
 
     # RdsSecurityGroup
         RdsSecurityGroupStg = ec2.CfnSecurityGroup(self, "RdsSecurityGroupStg",
@@ -18,12 +19,18 @@ class CdkRDSStack(core.Stack):
           group_description = 'stg-'+prefix+'-db01',
           vpc_id = vpc.ref,
           security_group_ingress = [
-            {
-              "ipProtocol" : "tcp",
-              "fromPort" : 3306,
-              "toPort" : 3306,
-              "cidrIp" : "0.0.0.0/0"
-            }
+            ec2.CfnSecurityGroup.IngressProperty(
+              ip_protocol="tcp",
+              to_port=3306,
+              from_port=3306,
+              cidr_ip='0.0.0.0/0',
+            ),
+            ec2.CfnSecurityGroup.IngressProperty(
+              ip_protocol="tcp",
+              to_port=3306,
+              from_port=3306,
+              source_security_group_id=ec2_sg_id.ref,
+            ),
           ],
           security_group_egress = [
             {
